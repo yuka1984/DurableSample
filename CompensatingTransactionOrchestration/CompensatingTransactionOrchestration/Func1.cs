@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Cache;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
@@ -76,10 +77,6 @@ namespace CompensatingTransactionOrchestration
                 }
 
                 compensatingStack.Clear();
-            }
-            catch (Exception e)
-            {
-                throw;
             }
             finally
             {
@@ -332,7 +329,10 @@ namespace CompensatingTransactionOrchestration
                 var status = await starter.GetStatusAsync(instanceId);
                 if (status?.RuntimeStatus > OrchestrationRuntimeStatus.Running)
                 {
-                    return starter.CreateCheckStatusResponse(req, instanceId);
+                    return new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(JsonConvert.SerializeObject(status))
+                    };
                 }
                 await Task.Delay(TimeSpan.FromSeconds(2));
             }
