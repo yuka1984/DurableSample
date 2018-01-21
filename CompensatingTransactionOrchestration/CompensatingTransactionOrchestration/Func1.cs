@@ -16,14 +16,12 @@ using Newtonsoft.Json.Linq;
 namespace CompensatingTransactionOrchestration
 {
     public static class Functions
-    {
-
+    {        
         [FunctionName("HttpStartSingle")]
         public static async Task<HttpResponseMessage> RunSingle(
             [HttpTrigger(AuthorizationLevel.Function, methods: "post",
-                Route = "orchestrators/{functionName}/{requestId}/{point}")] HttpRequestMessage req,
+                Route = "orchestrators/HttpStartSingle/{requestId}/{point}")] HttpRequestMessage req,
             [OrchestrationClient] DurableOrchestrationClient starter,
-            string functionName,
             string requestId,
             int point,
             TraceWriter log)
@@ -315,6 +313,29 @@ namespace CompensatingTransactionOrchestration
         public class PointTable : TableEntity
         {
             public int Point { get; set; }
+        }
+
+        [FunctionName("HttpStartWait")]
+        public static async Task<HttpResponseMessage> RunWait(
+            [HttpTrigger(AuthorizationLevel.Function, methods: "post",
+                Route = "orchestrators/HttpStartWait/{requestId}/{point}")] HttpRequestMessage req,
+            [OrchestrationClient] DurableOrchestrationClient starter,
+            string requestId,
+            int point,
+            TraceWriter log)
+        {
+            var instanceId = await starter.StartNewAsync("CompensatingTransactOrchestrator",
+                new PointRequest() { RequestId = requestId, Point = point });
+
+            while (true)
+            {
+                var status = await starter.GetStatusAsync(instanceId);
+                if (status?.RuntimeStatus > OrchestrationRuntimeStatus.Running)
+                {
+                    return starter.CreateCheckStatusResponse(req, instanceId);
+                }
+                await Task.Delay(TimeSpan.FromSeconds(2));
+            }
         }
     }
 }
