@@ -44,14 +44,20 @@ namespace WebHookApi
             return requestNo * 2;
         }
 
-        public static async Task HookActivity([ActivityTrigger] int requestNo)
+        public static async Task HookActivity([ActivityTrigger] DurableActivityContext context)
         {
+            var requestNo = context.GetInput<int>();
             ServicePointManager.DefaultConnectionLimit = 100;
             var hookUrl = ConfigurationManager.AppSettings["WebHookUrl"];
             using (var client = new HttpClient())
             {
                 var result =
-                    await client.PostAsJsonAsync(hookUrl, new ResultModel() {Succeed = requestNo % 2 == 0, Value = requestNo});
+                    await client.PostAsJsonAsync(hookUrl, new ResultModel()
+                    {
+                        Succeed = requestNo % 2 == 0,
+                        Value = requestNo,
+                        InstanceId = context.InstanceId
+                    });
                 if (!result.IsSuccessStatusCode)
                 {
                     throw new Exception("WebHook fault");
@@ -62,6 +68,8 @@ namespace WebHookApi
 
     public class ResultModel
     {
+        public string InstanceId { get; set; }
+
         public bool Succeed { get; set; }
 
         public int Value { get; set; }
