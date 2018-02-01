@@ -12,27 +12,15 @@ namespace WebHookOrchestration
 {
     public static class WebhookOrchestrator
     {
-        [FunctionName("WebhookOrchestrator")]
+        [FunctionName("request")]
         public static async Task<HttpResponseMessage> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)]HttpRequestMessage req
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "api/request/{value}")]HttpRequestMessage req
+            , [OrchestrationClient]DurableOrchestrationClient client
+            , int value
             , TraceWriter log)
         {
-            log.Info("C# HTTP trigger function processed a request.");
-
-            // parse query parameter
-            string name = req.GetQueryNameValuePairs()
-                .FirstOrDefault(q => string.Compare(q.Key, "name", true) == 0)
-                .Value;
-
-            // Get request body
-            dynamic data = await req.Content.ReadAsAsync<object>();
-
-            // Set name to query string or body data
-            name = name ?? data?.name;
-
-            return name == null
-                ? req.CreateResponse(HttpStatusCode.BadRequest, "Please pass a name on the query string or in the request body")
-                : req.CreateResponse(HttpStatusCode.OK, "Hello " + name);
+            var instanceId = await client.StartNewAsync(nameof(WebHookOrchestratir), value);
+            return client.CreateCheckStatusResponse(req, instanceId);
         }
 
         [FunctionName(nameof(WebHookOrchestratir))]
@@ -57,7 +45,7 @@ namespace WebHookOrchestration
             using (var client = new HttpClient())
             {
                 var result = await client.GetStringAsync(url);
-                return result;
+                return result.Replace("\"", "");
             }
         }
 

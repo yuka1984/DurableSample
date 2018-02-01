@@ -15,7 +15,7 @@ namespace WebHookApi
     {
         [FunctionName("DelayHook")]
         public static async Task<HttpResponseMessage> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "get", Route = null)]HttpRequestMessage req
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = null)]HttpRequestMessage req
             , [OrchestrationClient] DurableOrchestrationClient client
             , TraceWriter log)
         {
@@ -33,8 +33,8 @@ namespace WebHookApi
             int requestNo = context.GetInput<int>();
             var result = await context.CallActivityAsync<int>(nameof(ProcessActivity), requestNo);
 
-            await context.CallActivityWithRetryAsync(nameof(ProcessActivity),
-                new RetryOptions(TimeSpan.FromMinutes(5), 5), requestNo);
+            await context.CallActivityWithRetryAsync(nameof(HookActivity),
+                new RetryOptions(TimeSpan.FromMinutes(5), 5), result);
         }
 
         [FunctionName(nameof(ProcessActivity))]
@@ -44,6 +44,7 @@ namespace WebHookApi
             return requestNo * 2;
         }
 
+        [FunctionName(nameof(HookActivity))]
         public static async Task HookActivity([ActivityTrigger] DurableActivityContext context)
         {
             var requestNo = context.GetInput<int>();
