@@ -30,23 +30,22 @@ namespace IdempotencyKey.Api
             var requestJson = await requestMessage.Content.ReadAsStringAsync();
             var request = default(RequestModel);
 
+            try
+            {
+                request = JsonConvert.DeserializeObject<RequestModel>(requestJson);
+            }
+            catch (Exception e)
+            {
+                return requestMessage.CreateErrorResponse(HttpStatusCode.BadRequest, "Request json is bad.");
+            }
+
+            if (!request.GetValidate())
+            {
+                return requestMessage.CreateErrorResponse(HttpStatusCode.BadRequest, "Request is bad.");
+            }
 
             for (int i = 0; i < RetryCount; i++)
             {
-                try
-                {
-                    request = JsonConvert.DeserializeObject<RequestModel>(requestJson);
-                }
-                catch (Exception e)
-                {
-                    return requestMessage.CreateErrorResponse(HttpStatusCode.BadRequest, "Request json is bad.");
-                }
-
-                if (!request.GetValidate())
-                {
-                    return requestMessage.CreateErrorResponse(HttpStatusCode.BadRequest, "Request is bad.");
-                }                
-
                 var idempotencyKeyEntity = await idempotencyKeytable.Get<IdempotencyKeyTableEntity>(request.UserId, request.IdempotencyKey);
                 if (idempotencyKeyEntity != null && !string.IsNullOrEmpty(idempotencyKeyEntity.InstanceId))
                 {
